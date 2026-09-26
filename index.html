@@ -45,7 +45,7 @@ button{cursor:pointer}
 .hero{padding:12px 4px 22px}
 .hero p{margin:0;color:var(--muted);font-size:1rem}
 .owed{font-size:clamp(3rem,15vw,4.6rem);font-weight:800;letter-spacing:-.03em;line-height:1;margin:6px 0 4px;color:var(--debt)}
-.owed.zero{color:var(--accent)}
+.owed.zero{color:var(--ok,var(--accent))}
 .store{font-size:.8rem;color:var(--muted)}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
@@ -101,7 +101,35 @@ h3{font-size:1rem;margin:0 0 10px;font-weight:700}
 .export{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px;width:100%;font-weight:500;margin-top:4px}
 .bk{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 @media (prefers-reduced-motion:no-preference){.cat .fill{transition:width .35s ease}}
+.temas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.temas button{display:flex;flex-direction:column;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 4px;font-size:.8rem;min-width:0}
+.temas button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.temas i{flex:none;width:30px;height:30px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.temas span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
+<script>
+/* ---------- temas de cores ---------- */
+const TEMAS={
+ auto:{nome:"Automático"},
+ salvia:{nome:"Sálvia",bg:"#E8EDE9",surface:"#F7F9F7",ink:"#17231D",muted:"#5E6E65",line:"#CBD5CF",accent:"#2E5E4E","accent-ink":"#FFFFFF",debt:"#A23B2A",ok:"#2E7D4F"},
+ oceano:{nome:"Oceano",bg:"#E6EEF5",surface:"#F7FAFD",ink:"#12202E",muted:"#5A6B7C",line:"#C9D6E3",accent:"#1F5A8C","accent-ink":"#FFFFFF",debt:"#B3372E",ok:"#1E8A5A"},
+ lavanda:{nome:"Lavanda",bg:"#EEEAF5",surface:"#FAF8FD",ink:"#221A30",muted:"#6B6180",line:"#D6CEE6",accent:"#5B3F9E","accent-ink":"#FFFFFF",debt:"#B8324A",ok:"#2C8A5E"},
+ terracota:{nome:"Terracota",bg:"#F4ECE3",surface:"#FCF8F3",ink:"#2B1E15",muted:"#7A6555",line:"#E3D4C4",accent:"#B4532A","accent-ink":"#FFFFFF",debt:"#A8261F",ok:"#3F7D3A"},
+ rosa:{nome:"Rosa",bg:"#F7E9EE",surface:"#FFF8FA",ink:"#2E1720",muted:"#80606C",line:"#EBCFD9",accent:"#C23B6E","accent-ink":"#FFFFFF",debt:"#B0262E",ok:"#2F8A5B"},
+ noite:{nome:"Noite",escuro:1,bg:"#121814",surface:"#1B231E",ink:"#E4ECE6",muted:"#93A399",line:"#2E3A33",accent:"#7FB59E","accent-ink":"#0F1A15",debt:"#E58A73",ok:"#7FD1A0"},
+ grafite:{nome:"Grafite",escuro:1,bg:"#18181B",surface:"#232326",ink:"#F2F2F0",muted:"#A1A1A6",line:"#35353A",accent:"#F2C230","accent-ink":"#18181B",debt:"#FF6B5B",ok:"#5FD68A"},
+ menta:{nome:"Menta",bg:"#E4F4EF",surface:"#F7FCFA",ink:"#0F2A24",muted:"#557069",line:"#C3E3D9",accent:"#0E8C73","accent-ink":"#FFFFFF",debt:"#C0392B",ok:"#0E8C73"}
+};
+const TEMA_LS="despesas-tema";
+function aplicarTema(id){
+  const t=TEMAS[id]||TEMAS.auto, st=document.documentElement.style;
+  ["bg","surface","ink","muted","line","accent","accent-ink","debt","ok"].forEach(k=>t[k]?st.setProperty("--"+k,t[k]):st.removeProperty("--"+k));
+  st.colorScheme=t.bg?(t.escuro?"dark":"light"):"";
+  const m=document.querySelector('meta[name="theme-color"]');
+  if(m) m.content=t.bg||getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#E8EDE9";
+}
+try{aplicarTema(localStorage.getItem(TEMA_LS)||"auto")}catch(e){}
+</script>
 </head>
 <body>
 <main>
@@ -152,6 +180,11 @@ h3{font-size:1rem;margin:0 0 10px;font-weight:700}
     <button class="export" id="restoreBtn">Restaurar cópia</button>
     <input type="file" id="restore" accept=".json,application/json" hidden>
   </div>
+
+  <section class="card" style="margin-top:14px">
+    <h3>Cores da app</h3>
+    <div class="temas" id="temas"></div>
+  </section>
 </main>
 
 <script>
@@ -357,6 +390,23 @@ $("import").onchange=async e=>{
   }catch(err){flash("Não encontrei despesas nesse ficheiro.")}
   e.target.value="";
 };
+/* ---------- escolher cores ---------- */
+(()=>{
+  let atual; try{atual=localStorage.getItem(TEMA_LS)||"auto"}catch(e){atual="auto"}
+  const box=$("temas");
+  Object.entries(TEMAS).forEach(([id,t])=>{
+    const b=document.createElement("button");
+    b.dataset.tema=id; b.setAttribute("aria-pressed",id===atual);
+    const cor=t.bg?`background:linear-gradient(135deg,${t.bg} 50%,${t.accent} 50%)`:"background:linear-gradient(135deg,#E8EDE9 50%,#121814 50%)";
+    b.innerHTML=`<i style="${cor}"></i><span>${t.nome}</span>`;
+    b.onclick=()=>{
+      aplicarTema(id);
+      try{localStorage.setItem(TEMA_LS,id)}catch(e){}
+      box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    };
+    box.appendChild(b);
+  });
+})();
 </script>
 </body>
 </html>
