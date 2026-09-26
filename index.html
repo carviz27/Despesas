@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Despesas">
-<meta name="theme-color" content="#E8EDE9">
+<meta name="theme-color" content="#E6EEF5">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
 <link rel="manifest" href="manifest.json">
@@ -110,7 +110,6 @@ h3{font-size:1rem;margin:0 0 10px;font-weight:700}
 <script>
 /* ---------- temas de cores ---------- */
 const TEMAS={
- auto:{nome:"Automático"},
  salvia:{nome:"Sálvia",bg:"#E8EDE9",surface:"#F7F9F7",ink:"#17231D",muted:"#5E6E65",line:"#CBD5CF",accent:"#2E5E4E","accent-ink":"#FFFFFF",debt:"#A23B2A",ok:"#2E7D4F"},
  oceano:{nome:"Oceano",bg:"#E6EEF5",surface:"#F7FAFD",ink:"#12202E",muted:"#5A6B7C",line:"#C9D6E3",accent:"#1F5A8C","accent-ink":"#FFFFFF",debt:"#B3372E",ok:"#1E8A5A"},
  lavanda:{nome:"Lavanda",bg:"#EEEAF5",surface:"#FAF8FD",ink:"#221A30",muted:"#6B6180",line:"#D6CEE6",accent:"#5B3F9E","accent-ink":"#FFFFFF",debt:"#B8324A",ok:"#2C8A5E"},
@@ -120,15 +119,15 @@ const TEMAS={
  grafite:{nome:"Grafite",escuro:1,bg:"#18181B",surface:"#232326",ink:"#F2F2F0",muted:"#A1A1A6",line:"#35353A",accent:"#F2C230","accent-ink":"#18181B",debt:"#FF6B5B",ok:"#5FD68A"},
  menta:{nome:"Menta",bg:"#E4F4EF",surface:"#F7FCFA",ink:"#0F2A24",muted:"#557069",line:"#C3E3D9",accent:"#0E8C73","accent-ink":"#FFFFFF",debt:"#C0392B",ok:"#0E8C73"}
 };
-const TEMA_LS="despesas-tema";
+const TEMA_LS="despesas-tema", TEMA_PADRAO="oceano";
 function aplicarTema(id){
-  const t=TEMAS[id]||TEMAS.auto, st=document.documentElement.style;
+  const t=TEMAS[id]||TEMAS[TEMA_PADRAO], st=document.documentElement.style;
   ["bg","surface","ink","muted","line","accent","accent-ink","debt","ok"].forEach(k=>t[k]?st.setProperty("--"+k,t[k]):st.removeProperty("--"+k));
   st.colorScheme=t.bg?(t.escuro?"dark":"light"):"";
   const m=document.querySelector('meta[name="theme-color"]');
   if(m) m.content=t.bg||getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()||"#E8EDE9";
 }
-try{aplicarTema(localStorage.getItem(TEMA_LS)||"auto")}catch(e){}
+try{aplicarTema(localStorage.getItem(TEMA_LS))}catch(e){aplicarTema(TEMA_PADRAO)}
 </script>
 </head>
 <body>
@@ -392,12 +391,13 @@ $("import").onchange=async e=>{
 };
 /* ---------- escolher cores ---------- */
 (()=>{
-  let atual; try{atual=localStorage.getItem(TEMA_LS)||"auto"}catch(e){atual="auto"}
+  let atual; try{atual=localStorage.getItem(TEMA_LS)}catch(e){}
+  if(!TEMAS[atual]) atual=TEMA_PADRAO;
   const box=$("temas");
   Object.entries(TEMAS).forEach(([id,t])=>{
     const b=document.createElement("button");
     b.dataset.tema=id; b.setAttribute("aria-pressed",id===atual);
-    const cor=t.bg?`background:linear-gradient(135deg,${t.bg} 50%,${t.accent} 50%)`:"background:linear-gradient(135deg,#E8EDE9 50%,#121814 50%)";
+    const cor=`background:linear-gradient(135deg,${t.bg} 50%,${t.accent} 50%)`;
     b.innerHTML=`<i style="${cor}"></i><span>${t.nome}</span>`;
     b.onclick=()=>{
       aplicarTema(id);
