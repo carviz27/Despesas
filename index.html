@@ -201,7 +201,7 @@ function render(){
   const gasto=items.filter(i=>i.tipo==="despesa").reduce((s,i)=>s+i.valor,0);
   const pago=items.filter(i=>i.tipo==="pagamento").reduce((s,i)=>s+i.valor,0);
   const owed=Math.round((gasto-pago)*100)/100;
-  $("owed").textContent=eur(owed); $("owed").classList.toggle("zero",owed<=0);
+  $("owed").textContent=eur(Math.abs(owed)); $("owed").classList.toggle("zero",owed<=0);
 
   const [y,m]=month.split("-").map(Number);
   $("mlabel").textContent=`${MESES[m-1][0].toUpperCase()+MESES[m-1].slice(1)} ${y}`;
