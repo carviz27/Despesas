@@ -13,3 +13,7 @@ App web (PWA) para registar despesas.
 
 - **iPhone (Safari):** abre o link → botão Partilhar → **Adicionar ao ecrã principal**.
 - **Android (Chrome):** abre o link → menu ⋮ → **Adicionar ao ecrã principal** / **Instalar app**.
+
+## Importar despesas
+
+Botão **Importar despesas (CSV)**: aceita o ficheiro que a própria app exporta, ou uma folha do Excel guardada como CSV com as colunas `Data;Descrição;Valor`. As despesas são acrescentadas às que já existem, e as linhas repetidas são ignoradas.

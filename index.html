@@ -145,6 +145,8 @@ h3{font-size:1rem;margin:0 0 10px;font-weight:700}
   </section>
 
   <button class="export" id="export" hidden>Exportar mês para Excel (CSV)</button>
+  <button class="export" id="importBtn">Importar despesas (CSV)</button>
+  <input type="file" id="import" accept=".csv,.txt,text/csv,text/plain" hidden>
   <div class="bk">
     <button class="export" id="backup">Guardar cópia de segurança</button>
     <button class="export" id="restoreBtn">Restaurar cópia</button>
@@ -278,6 +280,81 @@ $("restore").onchange=async e=>{
     if(!Array.isArray(data)||data.some(i=>!i.id||!i.data||typeof i.valor!=="number")) throw 0;
     items=data; persistAll(); render(); flash("Cópia restaurada.");
   }catch(err){flash("Esse ficheiro não é uma cópia válida.")}
+  e.target.value="";
+};
+/* ---------- importar CSV ---------- */
+function splitCSV(line,sep){
+  const out=[];let cur="",q=false;
+  for(let k=0;k<line.length;k++){
+    const c=line[k];
+    if(q){if(c==='"'){if(line[k+1]==='"'){cur+='"';k++}else q=false}else cur+=c}
+    else if(c==='"')q=true; else if(c===sep){out.push(cur);cur=""} else cur+=c;
+  }
+  out.push(cur);return out.map(x=>x.trim());
+}
+function parseData(t){
+  let m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m)return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
+  if(m){const y=m[3].length===2?"20"+m[3]:m[3];if(+m[2]>=1&&+m[2]<=12&&+m[1]>=1&&+m[1]<=31)return `${y}-${pad(+m[2])}-${pad(+m[1])}`}
+  return null;
+}
+function parseValor(t){
+  t=t.replace(/[€\s ]/g,"").replace(/^−/,"-");
+  if(!/^-?[\d.,]+$/.test(t))return NaN;
+  if(t.includes(",")&&t.includes(".")) t=t.lastIndexOf(",")>t.lastIndexOf(".")?t.replace(/\./g,"").replace(",","."):t.replace(/,/g,"");
+  else if(t.includes(",")) t=t.replace(",",".");
+  else if(/^-?\d{1,3}(\.\d{3})+$/.test(t)) t=t.replace(/\./g,"");
+  return parseFloat(t);
+}
+function parseImport(text){
+  const lines=text.replace(/^﻿/,"").split(/\r?\n/);
+  const first=lines.find(l=>l.trim())||"";
+  const sep=first.includes(";")?";":first.includes("\t")?"\t":",";
+  let tipo="despesa",cols=null,bad=0;const res=[];
+  for(const raw of lines){
+    if(!raw.trim())continue;
+    const c=splitCSV(raw,sep), low=c.map(x=>x.toLowerCase());
+    if(c.length===1&&/recebid/.test(low[0])){tipo="pagamento";cols=null;continue}
+    const iD=low.findIndex(x=>/^(data|date)/.test(x)), iV=low.findIndex(x=>/valor|montante|quantia|pre[cç]o|amount|value|price/.test(x));
+    if(iD>=0&&iV>=0){
+      cols={d:iD,v:iV,t:low.findIndex((x,k)=>k!==iD&&k!==iV&&/descri|nota|detalhe|nome|note|name/.test(x))};
+      if(low.some(x=>/recebid/.test(x)))tipo="pagamento";
+      continue;
+    }
+    let d,v,t;
+    if(cols){d=parseData(c[cols.d]||"");v=parseValor(c[cols.v]||"");t=cols.t>=0?c[cols.t]||"":""}
+    else{
+      const kd=c.findIndex(x=>parseData(x)), kv=c.findIndex((x,k)=>k!==kd&&!isNaN(parseValor(x)));
+      d=kd>=0?parseData(c[kd]):null; v=kv>=0?parseValor(c[kv]):NaN;
+      t=c.filter((x,k)=>k!==kd&&k!==kv&&x).join(" ");
+    }
+    if(!d||!(Math.abs(v)>0)){bad++;continue}
+    res.push({tipo:v<0&&tipo==="despesa"?"pagamento":tipo,data:d,desc:t,valor:Math.round(Math.abs(v)*100)/100});
+  }
+  return{res,bad};
+}
+$("importBtn").onclick=()=>$("import").click();
+$("import").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const {res,bad}=parseImport(await f.text());
+    if(!res.length) throw 0;
+    // ignora linhas que já existem (ex.: importar o mesmo ficheiro duas vezes)
+    const key=i=>[i.tipo,i.data,i.desc,i.valor].join("|"), have={};
+    items.forEach(i=>have[key(i)]=(have[key(i)]||0)+1);
+    let add=0,dup=0;
+    res.forEach((it,k)=>{
+      const kk=key(it);
+      if(have[kk]){have[kk]--;dup++;return}
+      items.push({id:Date.now().toString(36)+k.toString(36)+Math.random().toString(36).slice(2,6),...it});add++;
+    });
+    persistAll();
+    if(add) month=res[res.length-1].data.slice(0,7);
+    render();
+    $("msg").scrollIntoView({block:"center",behavior:"smooth"});
+    flash(`${add} importad${add===1?"a":"as"}`+(dup?`, ${dup} já existia${dup===1?"":"m"}`:"")+(bad?`, ${bad} linha${bad===1?"":"s"} ignorada${bad===1?"":"s"}`:"")+".");
+  }catch(err){flash("Não encontrei despesas nesse ficheiro.")}
   e.target.value="";
 };
 </script>
