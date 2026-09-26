@@ -61,6 +61,8 @@ button{cursor:pointer}
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
 .chips button{border:1px solid var(--line);background:none;border-radius:999px;padding:6px 12px;font-size:.9rem}
 .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#ordem{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+#ordem button{padding:7px 4px;font-size:.82rem;white-space:nowrap}
 .row{display:grid;grid-template-columns:1fr 150px;gap:8px;margin-bottom:12px}
 .field{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:16px}
 .primary{width:100%;border:0;background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:13px;font-weight:700;font-size:1rem}
@@ -162,7 +164,12 @@ try{aplicarTema(localStorage.getItem(TEMA_LS))}catch(e){aplicarTema(TEMA_PADRAO)
   </div>
 
   <section class="card">
-    <h3>Despesas do mês, da maior para a menor</h3>
+    <h3>Despesas do mês</h3>
+    <div class="chips" id="ordem" role="group" aria-label="Ordenar">
+      <button data-ordem="valor">Maior valor</button>
+      <button data-ordem="recentes">Mais recentes</button>
+      <button data-ordem="antigas">Mais antigas</button>
+    </div>
     <div id="list"></div>
   </section>
 
@@ -196,7 +203,9 @@ const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth(
 let items=[];           // {id,tipo,data,desc,cat,valor}
 let mode="despesa";
 let month=today().slice(0,7);
-let backend=null;       // {save(item),remove(id)}
+let backend=null;
+let ordem="valor";      // valor | recentes | antigas
+try{ordem=localStorage.getItem("despesas-ordem")||"valor"}catch(e){}       // {save(item),remove(id)}
 
 /* ---------- UI setup ---------- */
 $("date").value=today();
@@ -205,6 +214,9 @@ document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
   document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
   $("desc").placeholder=mode==="despesa"?"Descrição (ex.: passe)":"Nota (opcional)";
   $("add").textContent=mode==="despesa"?"Adicionar despesa":"Registar dinheiro recebido";
+});
+document.querySelectorAll("#ordem button").forEach(b=>b.onclick=()=>{
+  ordem=b.dataset.ordem; try{localStorage.setItem("despesas-ordem",ordem)}catch(e){} render();
 });
 $("prev").onclick=()=>shift(-1); $("next").onclick=()=>shift(1);
 function shift(k){let [y,m]=month.split("-").map(Number);m+=k;if(m<1){m=12;y--}if(m>12){m=1;y++}month=`${y}-${pad(m)}`;render()}
@@ -254,7 +266,12 @@ function render(){
   };
   const L=$("list"); L.innerHTML="";
   if(!mg.length) L.innerHTML='<p class="empty">Ainda não há despesas neste mês.</p>';
-  [...mg].sort((a,b)=>b.valor-a.valor).forEach(i=>{
+  const pos=i=>items.indexOf(i);
+  const cmp={valor:(a,b)=>b.valor-a.valor||pos(b)-pos(a),
+    recentes:(a,b)=>b.data.localeCompare(a.data)||pos(b)-pos(a),
+    antigas:(a,b)=>a.data.localeCompare(b.data)||pos(a)-pos(b)}[ordem]||((a,b)=>b.valor-a.valor);
+  document.querySelectorAll("#ordem button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ordem===ordem));
+  [...mg].sort(cmp).forEach(i=>{
     const p=tg?i.valor/tg:0, d=document.createElement("div");d.className="cat";
     d.innerHTML=`<span class="n"><span class="nm"></span> <small class="dt">${i.data.slice(8)}/${i.data.slice(5,7)}</small></span><span class="v">${eur(i.valor)}<span class="pct">${(p*100).toFixed(1).replace(".",",")}%</span><button class="x" aria-label="Apagar">×</button></span><div class="track"><div class="fill" style="width:${(p*100).toFixed(1)}%"></div></div>`;
     d.querySelector(".nm").textContent=i.desc||"Sem descrição";
